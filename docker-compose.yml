@@ -1,0 +1,47 @@
+x-base_service: &base_service
+  stop_signal: SIGKILL
+  tty: true
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=all                  # Expose all GPUs to the container
+    - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # Enable CUDA/compute capabilities
+  runtime: nvidia                                 # Use the NVIDIA runtime for GPU support
+  deploy:
+    restart_policy:
+      condition: always
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu, compute, utility]
+
+name: ai-tools
+
+services:
+
+  open-webui:
+    <<: *base_service
+    image: ghcr.io/open-webui/open-webui:cuda
+    ports:
+      - "5000:8080"                         # Maps port 5000 on the host to 8080 in the container
+    volumes:
+      - ./volumes/open-webui:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Adds host.docker.internal
+    restart: always                         # Always restart if stopped
+
+  comfy-ui:
+    <<: *base_service
+    image: yanwk/comfyui-boot:cu121
+    ports:
+      - "5001:8188"                         # Map port 5001 on the host to 8188 in the container
+    volumes:
+      - ./volumes/comfy-ui:/home/runner
+
+  invoke-ai:
+    <<: *base_service
+    image: ghcr.io/invoke-ai/invokeai
+    ports:
+      - "5002:9090"                         # Map port 5002 on the host to 9090 in the container
+    volumes:
+      - ./volumes/invoke-ai:/invokeai
